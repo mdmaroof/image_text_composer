@@ -1,6 +1,6 @@
 const SelectorBox = () => {
   return (
-    <section id="selector" className="border rounded-md h-72">
+    <section id="selector" className="relative border rounded-md h-72">
       SelectorBox
     </section>
   );
