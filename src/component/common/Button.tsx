@@ -7,7 +7,7 @@ const Button = ({ label, onClick }: ButtonType) => {
   return (
     <button
       onClick={() => onClick()}
-      className="bg-gray-100 hover:bg-gray-200 mx-4 py-3 border border-gray-300 rounded-md font-bold transition-all cursor-pointer"
+      className="bg-gray-700 hover:bg-gray-800 mx-4 py-3 border border-gray-300 rounded-md font-bold text-white transition-all cursor-pointer"
     >
       {label}
     </button>

@@ -1,10 +1,22 @@
 "use client";
-import { useLayersHook } from "@/hooks/layers";
+import { AppContext } from "@/context/AppContext";
 import Button from "../common/Button";
 import LayerCard from "./layerCard";
+import { useContext } from "react";
 
 const Layers = () => {
-  const { setTextLayers, textLayers } = useLayersHook();
+  const { setTextLayers, textLayers, selected, setSelected } =
+    useContext(AppContext)!;
+
+  const addTextLayer = () => {
+    setTextLayers((prev) => {
+      const newId = prev.length + 1;
+      const newLayer = { text: "Custom Text", id: newId };
+      setSelected(newId);
+      return [newLayer, ...prev];
+    });
+  };
+
   return (
     <main
       id="layers"
@@ -18,13 +30,24 @@ const Layers = () => {
         id="listing"
         className="flex flex-col flex-1 gap-4 px-4 overflow-y-auto"
       >
-        {/* <LayerCard selected number={1} label="heloo world" /> */}
         {textLayers.length === 0 && (
           <h1 className="text-gray-400">No Text Layer Added</h1>
         )}
+
+        {textLayers.length > 0 &&
+          textLayers.map((card) => {
+            return (
+              <LayerCard
+                selected={selected === card.id}
+                key={card.id}
+                label={card.text}
+                number={card.id}
+              />
+            );
+          })}
       </section>
 
-      <Button label="Add Text" onClick={() => {}} />
+      <Button label="Add Text" onClick={addTextLayer} />
     </main>
   );
 };
