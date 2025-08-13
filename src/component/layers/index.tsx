@@ -1,4 +1,10 @@
+"use client";
+import { useLayersHook } from "@/hooks/layers";
+import Button from "../common/Button";
+import LayerCard from "./layerCard";
+
 const Layers = () => {
+  const { setTextLayers, textLayers } = useLayersHook();
   return (
     <main
       id="layers"
@@ -10,15 +16,15 @@ const Layers = () => {
       </div>
       <section
         id="listing"
-        className="flex flex-col gap-4 px-4 overflow-y-auto"
+        className="flex flex-col flex-1 gap-4 px-4 overflow-y-auto"
       >
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
-        <div className="bg-white border border-gray-300 rounded w-full h-20 shrink-0" />
+        {/* <LayerCard selected number={1} label="heloo world" /> */}
+        {textLayers.length === 0 && (
+          <h1 className="text-gray-400">No Text Layer Added</h1>
+        )}
       </section>
+
+      <Button label="Add Text" onClick={() => {}} />
     </main>
   );
 };

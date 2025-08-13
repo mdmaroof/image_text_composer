@@ -62,7 +62,7 @@ const Canvas = () => {
       >
         <canvas
           ref={canvasRef}
-          className="bg-white shadow-md border border-gray-100 rounded w-[400px] h-full"
+          className="bg-white shadow-md border border-gray-100 rounded w-[720px] h-full"
         ></canvas>
       </section>
 
