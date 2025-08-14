@@ -56,7 +56,7 @@ const Canvas = () => {
     image.src = url;
   }, []);
 
-  const createCanvas = () => {
+  const createCanvas = useCallback(() => {
     if (!img || !wrapperRef.current || !canvasRef.current) return;
     const wrapper = wrapperRef.current;
     const canvas = canvasRef.current;
@@ -78,13 +78,13 @@ const Canvas = () => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, targetW, targetH);
     ctx.drawImage(img, 0, 0, targetW, targetH);
-  };
+  }, [img]);
 
   useEffect(() => {
     createCanvas();
-  }, [img]);
+  }, [img, createCanvas]);
 
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
@@ -132,11 +132,11 @@ const Canvas = () => {
       }
       ctx.restore();
     }
-  };
+  }, [selected, textLayers, createCanvas]);
 
   useEffect(() => {
     draw();
-  }, [textLayers]);
+  }, [textLayers, draw]);
 
   return (
     <main
