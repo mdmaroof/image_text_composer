@@ -38,7 +38,7 @@ const Canvas = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { textLayers, selected } = useContext(AppContext)!;
+  const { textLayers, selectedLayer } = useContext(AppContext)!;
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
 
@@ -124,7 +124,7 @@ const Canvas = () => {
       ctx.fillText(layer.text, offsetX, 0);
 
       // selection box
-      if (selected && selected === layer.id) {
+      if (selectedLayer && selectedLayer === layer.id) {
         ctx.strokeStyle = "rgba(59,130,246,0.9)"; // blue
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 2]);
@@ -132,7 +132,7 @@ const Canvas = () => {
       }
       ctx.restore();
     }
-  }, [selected, textLayers, createCanvas]);
+  }, [selectedLayer, textLayers, createCanvas]);
 
   useEffect(() => {
     draw();

@@ -5,14 +5,14 @@ import LayerCard from "./layerCard";
 import { useContext } from "react";
 
 const Layers = () => {
-  const { setTextLayers, textLayers, selected, setSelected } =
+  const { setTextLayers, textLayers, selectedLayer, setSelectedLayer } =
     useContext(AppContext)!;
 
   const addTextLayer = () => {
     setTextLayers((prev) => {
       const newId = prev.length + 1;
       const newLayer = { text: "Custom Text", id: newId };
-      setSelected(newId);
+      setSelectedLayer(newId);
       return [newLayer, ...prev];
     });
   };
@@ -38,7 +38,7 @@ const Layers = () => {
           textLayers.map((card) => {
             return (
               <LayerCard
-                selected={selected === card.id}
+                selected={selectedLayer === card.id}
                 key={card.id}
                 label={card.text}
                 number={card.id}
