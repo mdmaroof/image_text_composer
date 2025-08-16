@@ -11,7 +11,7 @@ const Canvas = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { textLayers, selectedLayer,setSelectedLayer,setTextLayers } = useContext(AppContext)!;
+  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers } = useContext(AppContext)!;
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
 
@@ -76,42 +76,56 @@ const Canvas = () => {
     for (let i = textLayers.length - 1; i >= 0; i--) {
       const layer = textLayers[i];
 
-      // Determine width used for layout (measured if not set)
+      // Determine width used for layout and compute wrapped lines/dimensions
       let width = layer.width || 0;
-      let lineCount = Math.max(1, layer.text.split("\n").length);
-      if (!width && ctx) {
+      let textBoxWidth = width;
+      let textBoxHeight = layer.fontSize; // default
+      if (ctx) {
         ctx.save();
         ctx.textBaseline = "top";
         ctx.font = `${layer.fontWeight} ${layer.fontSize}px "${layer.fontFamily}"`;
+
+        // Build lines with manual wrapping like drawText()
+        const lines: string[] = [];
         const paragraphs = layer.text.split("\n");
-        let maxW = 0;
         for (const para of paragraphs) {
-          const w = ctx.measureText(para).width;
-          if (w > maxW) maxW = w;
+          const words = para.split(/(\s+)/);
+          let current = "";
+          for (const w of words) {
+            const test = current + w;
+            const metrics = ctx.measureText(test);
+            if (width && metrics.width > width && current.trim() !== "") {
+              lines.push(current);
+              current = w.trimStart();
+            } else {
+              current = test;
+            }
+          }
+          lines.push(current);
         }
-        width = maxW || 200;
+
+        const lineHeight = layer.fontSize * LINE_HEIGHT_FACTOR;
+        textBoxWidth =
+          width || Math.max(...lines.map((l) => ctx!.measureText(l).width), 0) || 200;
+        textBoxHeight = Math.max(lineHeight * lines.length, layer.fontSize);
         ctx.restore();
       }
-      if (!width) width = 200;
+      if (!textBoxWidth) textBoxWidth = 200;
+      const height = textBoxHeight;
 
-      const height = layer.fontSize * LINE_HEIGHT_FACTOR * lineCount;
 
-      // Axis-aligned body hit (approximate for rotated text)
-      let tlx_world = layer.x;
-      if (layer.align === "center") tlx_world = layer.x - width / 2;
-      else if (layer.align === "right") tlx_world = layer.x - width;
+      const tlx_world = layer.x;
       const tly_world = layer.y;
-      const trx_world = tlx_world + width;
+      const trx_world = tlx_world + textBoxWidth;
       const bry_world = tly_world + height;
 
       const withinAABB =
         cx >= tlx_world - 4 && cx <= trx_world + 4 && cy >= tly_world - 4 && cy <= bry_world + 4;
 
-      // Compute handle world positions using rotation
       const angle = (layer.rotation * Math.PI) / 180;
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
-      const alignOffset = layer.align === "center" ? -width / 2 : layer.align === "right" ? -width : 0;
+      const alignOffset = 0;
 
       const toWorld = (lx: number, ly: number) => {
         return {
@@ -120,18 +134,16 @@ const Canvas = () => {
         };
       };
 
-      // Local handle positions (same as drawText)
-      const resizeLocalX = alignOffset + width + 8;
+      const resizeLocalX = alignOffset + textBoxWidth + 8;
       const resizeLocalY = height / 2;
-      const rotateLocalX = alignOffset + width / 2;
+      const rotateLocalX = alignOffset + textBoxWidth / 2;
       const rotateLocalY = -ROTATE_HANDLE_OFFSET;
       const resizeWorld = toWorld(resizeLocalX, resizeLocalY);
       const rotateWorld = toWorld(rotateLocalX, rotateLocalY);
 
 
-      // Distance from point to rotated right edge segment
-      const topRight = toWorld(alignOffset + width, 0);
-      const bottomRight = toWorld(alignOffset + width, height);
+      const topRight = toWorld(alignOffset + textBoxWidth, 0);
+      const bottomRight = toWorld(alignOffset + textBoxWidth, height);
       const px = cx, py = cy;
       const vx = bottomRight.x - topRight.x;
       const vy = bottomRight.y - topRight.y;
@@ -150,7 +162,6 @@ const Canvas = () => {
         return { layer, zone: "rotate" };
       }
 
-      // Then check body (coarse AABB)
       if (withinAABB) {
         return { layer, zone: "body" };
       }
@@ -175,7 +186,7 @@ const Canvas = () => {
   const [startAngle, setStartAngle] = useState<number | null>(null);
 
   const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if(!img) return
+    if (!img) return
     const hit = hitTestLayer(e.clientX, e.clientY);
     if (hit) {
       setSelectedLayer(hit.layer.id as number);
@@ -187,34 +198,54 @@ const Canvas = () => {
         setIsDragging(true);
         setDragStart({ x: cx, y: cy });
         setInitialPos({ x: hit.layer.x, y: hit.layer.y });
-
-        const width = hit.layer.width || 200;
-        let layerCenterX = hit.layer.x;
-        if (hit.layer.align === "center") layerCenterX = hit.layer.x;
-        else if (hit.layer.align === "right")
-          layerCenterX = hit.layer.x - width / 2;
-        else layerCenterX = hit.layer.x + width / 2;
-        setDragOffset({ x: cx - layerCenterX, y: cy - hit.layer.y });
+        // Track offset relative to top-left
+        setDragOffset({ x: cx - hit.layer.x, y: cy - hit.layer.y });
         setAction("move");
       } else if (hit.zone === "resize") {
         setDragStart({ x: cx, y: cy });
         setInitialWidth(hit.layer.width || 200);
         setAction("resize");
       } else if (hit.zone === "rotate") {
-
-        const width = hit.layer.width || 200;
-        let tlx = hit.layer.x;
-        if (hit.layer.align === "center") tlx = hit.layer.x - width / 2;
-        else if (hit.layer.align === "right") tlx = hit.layer.x - width;
-        const centerX = tlx + width / 2;
-        const centerY = hit.layer.y + (hit.layer.height || hit.layer.fontSize) / 2;
+        // Compute measured box for accurate rotation center
+        const canvas = canvasRef.current!;
+        const cctx = canvas.getContext("2d");
+        let boxW = hit.layer.width || 0;
+        let boxH = hit.layer.fontSize;
+        if (cctx) {
+          cctx.save();
+          cctx.textBaseline = "top";
+          cctx.font = `${hit.layer.fontWeight} ${hit.layer.fontSize}px "${hit.layer.fontFamily}"`;
+          const lines: string[] = [];
+          const paragraphs = hit.layer.text.split("\n");
+          for (const para of paragraphs) {
+            const words = para.split(/(\s+)/);
+            let current = "";
+            for (const w of words) {
+              const test = current + w;
+              const metrics = cctx.measureText(test);
+              if (boxW && metrics.width > boxW && current.trim() !== "") {
+                lines.push(current);
+                current = w.trimStart();
+              } else {
+                current = test;
+              }
+            }
+            lines.push(current);
+          }
+          const lineHeight = hit.layer.fontSize * LINE_HEIGHT_FACTOR;
+          boxW = boxW || Math.max(...lines.map((l) => cctx.measureText(l).width), 0) || 200;
+          boxH = Math.max(lineHeight * lines.length, hit.layer.fontSize);
+          cctx.restore();
+        }
+        const centerX = hit.layer.x + boxW / 2;
+        const centerY = hit.layer.y + boxH / 2;
         setRotateCenter({ x: centerX, y: centerY });
         setInitialRotation(hit.layer.rotation || 0);
 
         const angle0 = Math.atan2(cy - centerY, cx - centerX);
         setStartAngle(angle0);
         setAction("rotate");
-      } 
+      }
     } else {
       setSelectedLayer(null);
     }
@@ -244,25 +275,48 @@ const Canvas = () => {
     if (action === "move" && isDragging && dragStart && initialPos) {
       let nx = initialPos.x + (cx - dragStart.x);
       let ny = initialPos.y + (cy - dragStart.y);
-
-
-      const centerX = img!.width / 2;
-      const centerY = img!.height / 2;
-      const width = selectedTextLayer.width || 200;
-      let layerCenterX = nx;
-      if (selectedTextLayer.align === "center") layerCenterX = nx;
-      else if (selectedTextLayer.align === "right") layerCenterX = nx - width / 2;
-      else layerCenterX = nx + width / 2;
-      const layerCenterY =
-        ny + (selectedTextLayer.height || selectedTextLayer.fontSize) / 2;
-
-      if (Math.abs(layerCenterX - centerX) <= SNAP_THRESHOLD) {
-        if (selectedTextLayer.align === "center") nx = centerX;
-        else if (selectedTextLayer.align === "right") nx = centerX + width / 2;
-        else nx = centerX - width / 2;
+      // Measure current box for accurate snapping
+      const cctx = canvasRef.current!.getContext("2d");
+      let boxW = selectedTextLayer.width || 0;
+      let boxH = selectedTextLayer.fontSize;
+      if (cctx) {
+        cctx.save();
+        cctx.textBaseline = "top";
+        cctx.font = `${selectedTextLayer.fontWeight} ${selectedTextLayer.fontSize}px "${selectedTextLayer.fontFamily}"`;
+        const lines: string[] = [];
+        const paragraphs = selectedTextLayer.text.split("\n");
+        for (const para of paragraphs) {
+          const words = para.split(/(\s+)/);
+          let current = "";
+          for (const w of words) {
+            const test = current + w;
+            const metrics = cctx.measureText(test);
+            if (boxW && metrics.width > boxW && current.trim() !== "") {
+              lines.push(current);
+              current = w.trimStart();
+            } else {
+              current = test;
+            }
+          }
+          lines.push(current);
+        }
+        const lineHeight = selectedTextLayer.fontSize * LINE_HEIGHT_FACTOR;
+        boxW = boxW || Math.max(...lines.map((l) => cctx.measureText(l).width), 0) || 200;
+        boxH = Math.max(lineHeight * lines.length, selectedTextLayer.fontSize);
+        cctx.restore();
       }
-      if (Math.abs(layerCenterY - centerY) <= SNAP_THRESHOLD) {
-        ny = centerY - (selectedTextLayer.height || selectedTextLayer.fontSize) / 2;
+
+      const rectCanvas = canvasRef.current!.getBoundingClientRect();
+      const canvasCenterX = rectCanvas.width / 2;
+      const canvasCenterY = rectCanvas.height / 2;
+      const layerCenterX = nx + boxW / 2;
+      const layerCenterY = ny + boxH / 2;
+
+      if (Math.abs(layerCenterX - canvasCenterX) <= SNAP_THRESHOLD) {
+        nx = canvasCenterX - boxW / 2;
+      }
+      if (Math.abs(layerCenterY - canvasCenterY) <= SNAP_THRESHOLD) {
+        ny = canvasCenterY - boxH / 2;
       }
 
       updateTextLayer(selectedTextLayer.id, { x: nx, y: ny });
@@ -325,7 +379,8 @@ const Canvas = () => {
       ctx.textBaseline = "top";
       ctx.font = `${fontWeight} ${fontSize}px "${fontFamily}"`;
       ctx.fillStyle = color;
-      // Important: keep drawing in left-aligned local space and offset drawX manually for center/right
+
+      // Always draw relative to top-left; alignment is handled via drawX
       ctx.textAlign = "left";
 
       const lines: string[] = [];
@@ -356,9 +411,12 @@ const Canvas = () => {
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+        // position inside the box based on align using measured line width
+        const lineW = ctx.measureText(line).width;
+        const boxW = width || textBoxWidth;
         let drawX = 0;
-        if (align === "center") drawX = -textBoxWidth / 2;
-        else if (align === "right") drawX = -textBoxWidth;
+        if (align === "center") drawX = (boxW - lineW) / 2;
+        else if (align === "right") drawX = boxW - lineW;
         const drawY = i * lineHeight;
         ctx.fillText(line, drawX, drawY, width || undefined);
       }
@@ -369,9 +427,8 @@ const Canvas = () => {
         ctx.strokeStyle = "rgba(59,130,246,0.9)";
         ctx.lineWidth = 2;
 
-        let tlx = 0;
-        if (align === "center") tlx = -textBoxWidth / 2;
-        else if (align === "right") tlx = -textBoxWidth;
+        // Selection box anchored at top-left of the text box
+        const tlx = 0;
         const tly = 0;
 
         ctx.strokeRect(tlx - 4, tly - 4, textBoxWidth + 8, textBoxHeight + 8);
@@ -403,17 +460,42 @@ const Canvas = () => {
     const selectedtextLayer = textLayers.find((layer) => layer.id === selectedLayer);
 
     if (isDragging && selectedtextLayer && img) {
-      const canvasCenterX = img.naturalWidth / 2;
-      const canvasCenterY = img.naturalHeight / 2;
-      const selectedCenterX =
-      selectedtextLayer.x +
-        (selectedtextLayer.align === "center"
-          ? 0
-          : selectedtextLayer.align === "right"
-          ? -(selectedtextLayer.width || 0) / 2
-          : (selectedtextLayer.width || 0) / 2);
-      const selectedCenterY =
-      selectedtextLayer.y + (selectedtextLayer.height || selectedtextLayer.fontSize) / 2;
+      // Measure selected box for guideline alignment
+      const cctx = canvasRef.current!.getContext("2d");
+      let boxW = selectedtextLayer.width || 0;
+      let boxH = selectedtextLayer.fontSize;
+      if (cctx) {
+        cctx.save();
+        cctx.textBaseline = "top";
+        cctx.font = `${selectedtextLayer.fontWeight} ${selectedtextLayer.fontSize}px "${selectedtextLayer.fontFamily}"`;
+        const lines: string[] = [];
+        const paragraphs = selectedtextLayer.text.split("\n");
+        for (const para of paragraphs) {
+          const words = para.split(/(\s+)/);
+          let current = "";
+          for (const w of words) {
+            const test = current + w;
+            const metrics = cctx.measureText(test);
+            if (boxW && metrics.width > boxW && current.trim() !== "") {
+              lines.push(current);
+              current = w.trimStart();
+            } else {
+              current = test;
+            }
+          }
+          lines.push(current);
+        }
+        const lineHeight = selectedtextLayer.fontSize * LINE_HEIGHT_FACTOR;
+        boxW = boxW || Math.max(...lines.map((l) => cctx.measureText(l).width), 0) || 200;
+        boxH = Math.max(lineHeight * lines.length, selectedtextLayer.fontSize);
+        cctx.restore();
+      }
+
+      const rectCanvas = canvasRef.current!.getBoundingClientRect();
+      const canvasCenterX = rectCanvas.width / 2;
+      const canvasCenterY = rectCanvas.height / 2;
+      const selectedCenterX = selectedtextLayer.x + boxW / 2;
+      const selectedCenterY = selectedtextLayer.y + boxH / 2;
       ctx.save();
       ctx.strokeStyle = "rgba(148,163,184,0.8)";
       ctx.setLineDash([6, 4]);
@@ -421,13 +503,13 @@ const Canvas = () => {
       if (Math.abs(selectedCenterX - canvasCenterX) <= SNAP_THRESHOLD) {
         ctx.beginPath();
         ctx.moveTo(canvasCenterX, 0);
-        ctx.lineTo(canvasCenterX, img!.height);
+        ctx.lineTo(canvasCenterX, rectCanvas.height);
         ctx.stroke();
       }
       if (Math.abs(selectedCenterY - canvasCenterY) <= SNAP_THRESHOLD) {
         ctx.beginPath();
         ctx.moveTo(0, canvasCenterY);
-        ctx.lineTo(img!.width, canvasCenterY);
+        ctx.lineTo(rectCanvas.width, canvasCenterY);
         ctx.stroke();
       }
       ctx.restore();
