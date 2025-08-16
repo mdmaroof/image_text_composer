@@ -1,7 +1,6 @@
 "use client";
 import { AppContext, TextLayerType } from "@/context/AppContext";
 import { useContext } from "react";
-import Button from "../common/Button";
 
 const SelectorBox = () => {
   const { textLayers, selectedLayer, setTextLayers } = useContext(AppContext)!;
@@ -95,6 +94,21 @@ const SelectorBox = () => {
                       {align === "right" && "R"}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Color */}
+              <div>
+                <label className="block mb-1 font-medium text-gray-600 text-xs">
+                  Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={selectedTextLayer?.color}
+                    onChange={(e) => updateTextLayer(selectedLayer!, { color: e.target.value })}
+                    className="border border-gray-300 rounded w-8 h-8 hover:scale-105 transition-transform cursor-pointer"
+                  />
                 </div>
               </div>
 
