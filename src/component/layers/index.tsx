@@ -24,8 +24,8 @@ const Layers = () => {
         opacity: 1,
         align: "left" as Align,
         rotation: 0,
-        width: 100,
-        height: 100,
+        width: 300,
+        height: 80,
         z: Date.now(),
       };
       setSelectedLayer(newId);

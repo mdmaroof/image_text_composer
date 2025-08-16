@@ -32,7 +32,7 @@ const SelectorBox = () => {
           <div className="flex-2">
             <h2 className="font-bold text-gray-800 text-lg">Text Content</h2>
             <textarea 
-              rows={5} 
+              rows={4} 
               value={selectedTextLayer?.text || ''} 
               onChange={(e) => updateTextLayer(selectedLayer!, { text: e.target.value })} 
               className="p-2 border rounded w-full" 
@@ -43,6 +43,7 @@ const SelectorBox = () => {
             <h2 className="font-bold text-gray-800 text-lg">styling</h2>
 
             <div className="flex flex-row gap-4">
+
               {/* Font Size */}
               <div className="w-[150px]">
                 <label className="block mb-1 font-medium text-gray-600 text-xs">
@@ -57,7 +58,6 @@ const SelectorBox = () => {
                   className="p-2 border border-gray-300 focus:border-blue-500 rounded focus:ring-1 focus:ring-blue-500 w-full text-xs transition-all"
                 />
               </div>
-
 
               {/* Font Weight */}
               <div className="w-[150px]">
