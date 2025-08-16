@@ -22,9 +22,12 @@ export type TextLayerType = {
 };
 
 type AppContextType = {
+  // list of textlayers
   textLayers: TextLayerType[];
-  selectedLayer: number | null;
   setTextLayers: React.Dispatch<React.SetStateAction<TextLayerType[]>>;
+
+  // selected id
+  selectedLayer: number | null;
   setSelectedLayer: React.Dispatch<React.SetStateAction<number | null>>;
 };
 

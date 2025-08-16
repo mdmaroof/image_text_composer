@@ -8,7 +8,7 @@ type LayerCardType = {
 };
 
 const LayerCard = ({ label, number, selected }: LayerCardType) => {
-  const { setTextLayers, setSelected } = useContext(AppContext)!;
+  const { setTextLayers, setSelectedLayer } = useContext(AppContext)!;
 
   const deleteLayer = () => {
     setTextLayers((prev) => {
@@ -27,7 +27,7 @@ const LayerCard = ({ label, number, selected }: LayerCardType) => {
       <section className="flex flex-col gap-2 mt-2">
         <div className="flex gap-2">
           <div
-            onClick={() => setSelected(number)}
+            onClick={() => setSelectedLayer(number)}
             className="bg-orange-500 px-2 py-1 rounded text-white"
           >
             Select Layer
