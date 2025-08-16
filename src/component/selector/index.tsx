@@ -31,11 +31,11 @@ const SelectorBox = () => {
         <section className="flex gap-4 p-2">
           <div className="flex-2">
             <h2 className="font-bold text-gray-800 text-lg">Text Content</h2>
-            <textarea 
-              rows={4} 
-              value={selectedTextLayer?.text || ''} 
-              onChange={(e) => updateTextLayer(selectedLayer!, { text: e.target.value })} 
-              className="p-2 border rounded w-full" 
+            <textarea
+              rows={4}
+              value={selectedTextLayer?.text || ''}
+              onChange={(e) => updateTextLayer(selectedLayer!, { text: e.target.value })}
+              className="p-2 border rounded w-full"
             />
           </div>
 
@@ -117,15 +117,29 @@ const SelectorBox = () => {
                 </div>
               </div>
 
+              {/* Opacity */}
+              <div>
+                <label className="block mb-1 font-medium text-gray-600 text-xs">
+                  Opacity
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={selectedTextLayer?.opacity}
+                  onChange={(e) => updateTextLayer(selectedLayer!, { opacity: Number(e.target.value) })}
+                  className="bg-gray-200 rounded w-full h-2 appearance-none cursor-pointer slider"
+                />
+                <div className="mt-1 text-gray-500 text-xs text-center">
+                  {Math.round((selectedTextLayer?.opacity || 1) * 100)}%
+                </div>
+              </div>
             </div>
           </div>
 
 
-          {/* <div className="flex flex-1 justify-center items-center">
-            <Button label="Delete" onClick={() => deleteLayer()} />
-          </div> */}
-
-
+          
         </section>
 
       )}
