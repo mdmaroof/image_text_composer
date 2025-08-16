@@ -2,26 +2,10 @@
 
 import { createContext, ReactNode, useState } from "react";
 
-type Align = "left" | "center" | "right";
-type TextLayerType = {
-  id: number;
-  text: string;
-  x: number;
-  y: number;
-  fontFamily: string;
-  fontSize: number;
-  fontWeight: number;
-  color: string;
-  opacity: number;
-  align: Align;
-  rotation: number;
-  width: number;
-  height: number;
-  z: number;
-};
+export type Align = "left" | "center" | "right";
 
-export type TextLayer = {
-  id: string;
+export type TextLayerType = {
+  id: number;
   text: string;
   x: number;
   y: number;

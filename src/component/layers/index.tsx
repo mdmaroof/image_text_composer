@@ -3,15 +3,31 @@ import { AppContext } from "@/context/AppContext";
 import Button from "../common/Button";
 import LayerCard from "./layerCard";
 import { useContext } from "react";
+import { TextLayerType,Align } from "@/context/AppContext";
 
 const Layers = () => {
   const { setTextLayers, textLayers, selectedLayer, setSelectedLayer } =
     useContext(AppContext)!;
 
   const addTextLayer = () => {
-    setTextLayers((prev) => {
+    setTextLayers((prev: TextLayerType[]) => {
       const newId = prev.length + 1;
-      const newLayer = { text: "Custom Text", id: newId };
+      const newLayer = {
+        text: "Custom Text",
+        id: newId,
+        x: 100,
+        y: 80,
+        fontFamily: "Inter",
+        fontSize: 28,
+        fontWeight: 700,
+        color: "#111827",
+        opacity: 1,
+        align: "left" as Align,
+        rotation: 0,
+        width: 100,
+        height: 100,
+        z: Date.now(),
+      };
       setSelectedLayer(newId);
       return [newLayer, ...prev];
     });
