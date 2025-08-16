@@ -61,7 +61,7 @@ const Canvas = () => {
     ctx.drawImage(img, 0, 0, targetW, targetH);
   }, [img]);
 
-  const hitTestLayer = (
+  const hitTestLayer = useCallback((
     x: number,
     y: number
   ): { layer: TextLayerType; zone: "body" | "resize" | "rotate" } | null => {
@@ -110,7 +110,7 @@ const Canvas = () => {
       }
     }
     return null;
-  };
+  }, [textLayers]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(
@@ -187,11 +187,6 @@ const Canvas = () => {
 
       updateTextLayer(selectedTextLayer.id, { x: nx, y: ny });
     } else if (dragStart) {
-      const dx = cx - dragStart.x;
-      const newWidth = Math.max(20, (selectedTextLayer.width || 200) + dx);
-      setDragStart({ x: cx, y: dragStart.y });
-      updateTextLayer(selectedTextLayer.id, { width: newWidth });
-    } else if (dragStart) {
       const width = selectedTextLayer.width || 200;
       let tlx = selectedTextLayer.x;
       if (selectedTextLayer.align === "center") tlx = selectedTextLayer.x - width / 2;
@@ -214,9 +209,7 @@ const Canvas = () => {
     }
   }
 
-  useEffect(() => {
-    createCanvasWithImage();
-  }, [img, createCanvasWithImage]);
+
 
   const drawText = useCallback(() => {
     const canvas = canvasRef.current;
@@ -354,6 +347,10 @@ const Canvas = () => {
   useEffect(() => {
     drawText();
   }, [textLayers, drawText]);
+
+  useEffect(() => {
+    createCanvasWithImage();
+  }, [img, createCanvasWithImage]);
 
   return (
     <main

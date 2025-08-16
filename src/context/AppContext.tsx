@@ -17,7 +17,7 @@ export type TextLayerType = {
   align: Align;
   rotation: number;
   width: number;
-  height: number;
+  height?: number;
   z: number;
 };
 

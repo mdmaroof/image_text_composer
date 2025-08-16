@@ -31,7 +31,12 @@ const SelectorBox = () => {
         <section className="flex gap-4 p-2">
           <div className="flex-2">
             <h2 className="font-bold text-gray-800 text-lg">Text Content</h2>
-            <textarea rows={5} value={selectedTextLayer?.text} onChange={(e) => updateTextLayer(selectedLayer!, { text: e.target.value })} className="border w-full" />
+            <textarea 
+              rows={5} 
+              value={selectedTextLayer?.text || ''} 
+              onChange={(e) => updateTextLayer(selectedLayer!, { text: e.target.value })} 
+              className="p-2 border rounded w-full" 
+            />
           </div>
 
           <div className="flex-3">
@@ -47,7 +52,7 @@ const SelectorBox = () => {
                   type="number"
                   min="8"
                   max="200"
-                  value={selectedTextLayer?.fontSize}
+                  value={selectedTextLayer?.fontSize || 28}
                   onChange={(e) => updateTextLayer(selectedLayer!, { fontSize: Number(e.target.value) })}
                   className="p-2 border border-gray-300 focus:border-blue-500 rounded focus:ring-1 focus:ring-blue-500 w-full text-xs transition-all"
                 />
@@ -60,7 +65,7 @@ const SelectorBox = () => {
                   Weight
                 </label>
                 <select
-                  value={selectedTextLayer?.fontWeight}
+                  value={selectedTextLayer?.fontWeight || 400}
                   onChange={(e) => updateTextLayer(selectedLayer!, { fontWeight: Number(e.target.value) })}
                   className="p-2 border border-gray-300 focus:border-blue-500 rounded focus:ring-1 focus:ring-blue-500 w-full text-xs transition-all"
                 >
@@ -105,7 +110,7 @@ const SelectorBox = () => {
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={selectedTextLayer?.color}
+                    value={selectedTextLayer?.color || '#111827'}
                     onChange={(e) => updateTextLayer(selectedLayer!, { color: e.target.value })}
                     className="border border-gray-300 rounded w-8 h-8 hover:scale-105 transition-transform cursor-pointer"
                   />
