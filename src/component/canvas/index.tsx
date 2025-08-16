@@ -524,6 +524,7 @@ const Canvas = () => {
     createCanvasWithImage();
   }, [img, createCanvasWithImage]);
 
+
   return (
     <main
       id="canvas"
