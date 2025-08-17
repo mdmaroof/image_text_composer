@@ -39,14 +39,14 @@ The application follows a component-based architecture with a global state manag
 - **Next.js**: For React framework and server-side rendering
 - **TypeScript**: For type safety and better developer experience
 - **Tailwind CSS**: For utility-first styling
-- **Canvas API**: For image manipulation and text rendering
+- **Canvas API**: For image manipulation and text rendering(taken help from google and GPT)
 - **React Context**: For state management
 - **Google Fonts API**: For font selection and loading
 
 ### Trade-offs
 
 - **State Management**: Chose Context API over Redux for simplicity, though it might need refactoring for larger state
-- **Canvas **: Used Canvas for better performance with multiple text layers
+- **Canvas**: Used Canvas for better performance with multiple text layers
 - **No Backend**: All processing happens in the browser, limiting file size handling
 
 ## Features
