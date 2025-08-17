@@ -110,7 +110,7 @@ const Canvas = () => {
     }
     createCanvasWithImage();
     // draw in current array order to reflect layer move up/down
-    for (const layer of textLayers) {
+    for (const layer of (textLayers || [])) {
       const {
         x,
         y,
@@ -646,7 +646,7 @@ const Canvas = () => {
     octx.drawImage(img, 0, 0, naturalW, naturalH);
 
     // Draw text layers at scaled positions
-    for (const layer of textLayers) {
+    for (const layer of (textLayers || [])) {
       const fontSize = layer.fontSize * s;
       const lineHeight = fontSize * LINE_HEIGHT_FACTOR;
       const width = layer.width ? layer.width * s : 0;
@@ -764,20 +764,18 @@ const Canvas = () => {
           <Button
             variant="ghost"
             size="sm"
-            label={`Undo ${pastCount}/${maxHistory}`}
+            label={`Undo`}
             onClick={undo}
             disabled={!canUndo}
             className="text-xs"
-            title="Undo (Cmd/Ctrl+Z)"
           />
           <Button
             variant="ghost"
             size="sm"
-            label={`Redo ${futureCount}/${maxHistory}`}
+            label={`Redo`}
             onClick={redo}
             disabled={!canRedo}
             className="text-xs"
-            title="Redo (Shift+Cmd/Ctrl+Z)"
           />
         </div>
       </header>
@@ -815,6 +813,7 @@ const Canvas = () => {
         <Button
           variant="outline"
           size="sm"
+          disabled={!img}
           label="Export PNG"
           onClick={() => {
             const url = exportPNG();

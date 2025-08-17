@@ -3,15 +3,21 @@ import { AppContext } from "@/context/AppContext";
 import Button from "../common/Button";
 import LayerCard from "./layerCard";
 import { useContext } from "react";
-import { TextLayerType,Align } from "@/context/AppContext";
+import { TextLayerType, Align } from "@/context/AppContext";
 
 const Layers = () => {
   const { setTextLayers, textLayers, selectedLayer, setSelectedLayer } =
     useContext(AppContext)!;
 
   const addTextLayer = () => {
-    setTextLayers((prev: TextLayerType[]) => {
-      const newId = prev.length + 1;
+
+    if (!localStorage.getItem("itc:imageDataUrl")) {
+      alert("Please upload an image first");
+      return;
+    }
+    setTextLayers((prev: TextLayerType[] = []) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const newId = safePrev.length > 0 ? Math.max(...safePrev.map(l => l.id)) + 1 : 1;
       const newLayer = {
         text: "Custom Text",
         id: newId,
@@ -29,7 +35,7 @@ const Layers = () => {
         z: Date.now(),
       };
       setSelectedLayer(newId);
-      return [newLayer, ...prev];
+      return [newLayer, ...safePrev];
     });
   };
 
@@ -63,7 +69,9 @@ const Layers = () => {
           })}
       </section>
 
-      <Button label="Add Text" onClick={addTextLayer} />
+
+      <Button className="mx-4"
+        label="Add Text" onClick={addTextLayer} />
     </main>
   );
 };

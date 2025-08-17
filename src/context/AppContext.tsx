@@ -58,55 +58,84 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const isApplyingHistoryRef = useRef(false);
   const hasHydratedRef = useRef(false);
 
-  // Initialize from localStorage (client only)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY_LAYERS);
-      const savedLayers = raw ? (JSON.parse(raw) as TextLayerType[]) : [];
+      let savedLayers: TextLayerType[] = [];
+      if (raw && raw !== 'undefined') {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            savedLayers = parsed;
+          }
+        } catch (e) {
+          console.error("Failed to parse saved layers:", e);
+        }
+      }
+      
+      let selected: number | null = null;
       const savedSelRaw = localStorage.getItem(LS_KEY_SELECTED);
-      const parsedSel = savedSelRaw ? JSON.parse(savedSelRaw) : null;
-      _setTextLayers(savedLayers || []);
-      _setSelectedLayer(typeof parsedSel === "number" ? parsedSel : null);
+      if (savedSelRaw && savedSelRaw !== 'undefined') {
+        try {
+          const parsed = JSON.parse(savedSelRaw);
+          if (typeof parsed === 'number') {
+            selected = parsed;
+          }
+        } catch (e) {
+          console.error("Failed to parse selected layer:", e);
+        }
+      }
+      
+      _setTextLayers(savedLayers);
+      _setSelectedLayer(selected);
     } catch (e) {
-      console.error("Failed to load layers from localStorage:", e);
+      console.error("Failed to load from localStorage:", e);
     } finally {
       hasHydratedRef.current = true;
     }
   }, []);
 
-  // Persist changes
+  // Safely save data to localStorage
+  const safeSetItem = useCallback((key: string, value: any) => {
+    try {
+      if (value === undefined || value === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    } catch (e) {
+      console.error(`Failed to save ${key} to localStorage:`, e);
+    }
+  }, []);
+
+  // Persist layers changes
   useEffect(() => {
     if (!hasHydratedRef.current) return;
-    try {
-      localStorage.setItem(LS_KEY_LAYERS, JSON.stringify(textLayers));
-    } catch (e) {
-      console.error("Failed to save layers to localStorage:", e);
-    }
-  }, [textLayers]);
+    safeSetItem(LS_KEY_LAYERS, textLayers);
+  }, [textLayers, safeSetItem]);
 
+  // Persist selected layer changes
   useEffect(() => {
     if (!hasHydratedRef.current) return;
-    try {
-      localStorage.setItem(LS_KEY_SELECTED, JSON.stringify(selectedLayer));
-    } catch (e) {
-      console.error("Failed to save selected layer to localStorage:", e);
-    }
-  }, [selectedLayer]);
+    safeSetItem(LS_KEY_SELECTED, selectedLayer);
+  }, [selectedLayer, safeSetItem]);
 
-  // Helper to compare arrays shallowly by reference equality at element level
   const areArraysShallowEqual = (a: TextLayerType[], b: TextLayerType[]) => {
     if (a === b) return true;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
+    if (a?.length !== b?.length) return false;
+    for (let i = 0; i < a?.length; i++) {
       if (a[i] !== b[i]) return false;
     }
     return true;
   };
 
-  // Basic setter without history side-effects; history tracked in a committed-change effect
   const setTextLayers: React.Dispatch<React.SetStateAction<TextLayerType[]>> = useCallback((updater) => {
     _setTextLayers((prev) => {
-      const next = typeof updater === "function" ? (updater as (p: TextLayerType[]) => TextLayerType[])(prev) : updater;
+      const next = typeof updater === "function" 
+        ? (updater as (p: TextLayerType[]) => TextLayerType[])(prev || []) 
+        : Array.isArray(updater) 
+          ? updater 
+          : [];
       return areArraysShallowEqual(prev, next) ? prev : next;
     });
   }, []);
