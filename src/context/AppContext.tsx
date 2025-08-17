@@ -95,8 +95,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const safeSetItem = useCallback((key: string, value: any) => {
+  const safeSetItem = useCallback((key: string, value: TextLayerType[] | number | null) => {
     try {
       if (value === undefined || value === null) {
         localStorage.removeItem(key);
