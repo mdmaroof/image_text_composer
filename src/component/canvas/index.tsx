@@ -11,9 +11,10 @@ const Canvas = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers } = useContext(AppContext)!;
+  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers, undo, redo } = useContext(AppContext)!;
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   const updateTextLayer = (id: number, updates: Partial<TextLayerType>) => {
     setTextLayers((prev: TextLayerType[]) => {
@@ -28,17 +29,24 @@ const Canvas = () => {
     //   alert("Please upload a PNG image.");
     //   return;
     // }
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      setImg(image);
-      URL.revokeObjectURL(url);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setImageDataUrl(dataUrl);
+      try {
+        localStorage.setItem("itc:imageDataUrl", dataUrl);
+      } catch (_) {}
+      const image = new Image();
+      image.onload = () => {
+        setImg(image);
+      };
+      image.src = dataUrl;
     };
-    image.src = url;
+    reader.readAsDataURL(file);
   }, []);
 
   const createCanvasWithImage = useCallback(() => {
-    if (!img || !wrapperRef.current || !canvasRef.current) return;
+    if (!wrapperRef.current || !canvasRef.current) return;
     const wrapper = wrapperRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -46,20 +54,53 @@ const Canvas = () => {
     const maxW = wrapper.clientWidth;
     const maxH = wrapper.clientHeight;
 
-    const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-    const targetW = Math.max(1, Math.floor(img.naturalWidth * scale));
-    const targetH = Math.max(1, Math.floor(img.naturalHeight * scale));
-
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(targetW * dpr);
-    canvas.height = Math.round(targetH * dpr);
-    canvas.style.width = `${targetW}px`;
-    canvas.style.height = `${targetH}px`;
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, targetW, targetH);
-    ctx.drawImage(img, 0, 0, targetW, targetH);
+    if (img) {
+      const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      const targetW = Math.max(1, Math.floor(img.naturalWidth * scale));
+      const targetH = Math.max(1, Math.floor(img.naturalHeight * scale));
+
+      canvas.width = Math.round(targetW * dpr);
+      canvas.height = Math.round(targetH * dpr);
+      canvas.style.width = `${targetW}px`;
+      canvas.style.height = `${targetH}px`;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, targetW, targetH);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+    } else {
+      const targetW = Math.max(1, Math.floor(maxW));
+      const targetH = Math.max(1, Math.floor(maxH));
+      canvas.width = Math.round(targetW * dpr);
+      canvas.height = Math.round(targetH * dpr);
+      canvas.style.width = `${targetW}px`;
+      canvas.style.height = `${targetH}px`;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, targetW, targetH);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, targetW, targetH);
+    }
   }, [img]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("itc:imageDataUrl");
+      if (saved) {
+        setImageDataUrl(saved);
+        const image = new Image();
+        image.onload = () => setImg(image);
+        image.src = saved;
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    createCanvasWithImage();
+    drawText();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hitTestLayer = useCallback((
     x: number,
@@ -359,8 +400,8 @@ const Canvas = () => {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     createCanvasWithImage();
-    const ordered = [...textLayers].sort((a, b) => a.id - b.id);
-    for (const layer of ordered) {
+    // draw in current array order to reflect layer move up/down
+    for (const layer of textLayers) {
       const {
         x,
         y,
@@ -523,6 +564,38 @@ const Canvas = () => {
   useEffect(() => {
     createCanvasWithImage();
   }, [img, createCanvasWithImage]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const meta = isMac ? e.metaKey : e.ctrlKey;
+      if (!meta) return;
+      if (e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
+
+  useEffect(() => {
+    const handle = () => {
+      createCanvasWithImage();
+      drawText();
+    };
+    window.addEventListener("resize", handle);
+    let ro: ResizeObserver | null = null;
+    if (wrapperRef.current && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(handle);
+      ro.observe(wrapperRef.current);
+    }
+    return () => {
+      window.removeEventListener("resize", handle);
+      if (ro && wrapperRef.current) ro.unobserve(wrapperRef.current);
+    };
+  }, [createCanvasWithImage, drawText]);
 
 
   return (
