@@ -14,7 +14,7 @@ const Canvas = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resetInProgressRef = useRef(false);
 
-  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers, undo, redo, canUndo, canRedo, pastCount, futureCount, maxHistory, resetLayersAndHistory } = useContext(AppContext)!;
+  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers, undo, redo, canUndo, canRedo, resetLayersAndHistory } = useContext(AppContext)!;
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
 

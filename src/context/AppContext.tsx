@@ -95,7 +95,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Safely save data to localStorage
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const safeSetItem = useCallback((key: string, value: any) => {
     try {
       if (value === undefined || value === null) {
