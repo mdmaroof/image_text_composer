@@ -46,12 +46,12 @@ const Layers = () => {
         id="listing"
         className="flex flex-col flex-1 gap-4 px-4 overflow-y-auto"
       >
-        {textLayers.length === 0 && (
+        {textLayers?.length === 0 && (
           <h1 className="text-gray-400">No Text Layer Added</h1>
         )}
 
-        {textLayers.length > 0 &&
-          textLayers.map((card) => {
+        {textLayers?.length > 0 &&
+          textLayers?.map((card) => {
             return (
               <LayerCard
                 selected={selectedLayer === card.id}

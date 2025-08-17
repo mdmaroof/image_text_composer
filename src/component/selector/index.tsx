@@ -4,8 +4,8 @@ import { GOOGLE_FONTS } from "@/helpers/GoogleFonts";
 import { useContext } from "react";
 
 const SelectorBox = () => {
-  const { textLayers, selectedLayer, setTextLayers, undo, redo, canUndo, canRedo, pastCount, futureCount, maxHistory } = useContext(AppContext)!;
-  const selectedTextLayer = textLayers.find((layer) => layer.id === selectedLayer);
+  const { textLayers, selectedLayer, setTextLayers } = useContext(AppContext)!;
+  const selectedTextLayer = textLayers?.find((layer) => layer.id === selectedLayer);
   const updateTextLayer = (id: number, updates: Partial<TextLayerType>) => {
     setTextLayers((prev: TextLayerType[]) => {
       return prev.map((layer) =>
@@ -22,7 +22,7 @@ const SelectorBox = () => {
 
   return (
     <section id="selector" className="relative bg-white shadow-sm border border-gray-200 rounded-lg h-72">
-      {textLayers.length === 0 || !selectedTextLayer ? (
+      {textLayers?.length === 0 || !selectedTextLayer ? (
         <main className="flex flex-col justify-center items-center p-6 h-full text-center">
           <div className="text-gray-500 text-sm">No text layer selected</div>
           <div className="text-gray-400 text-xs">Add or select a text layer to start editing</div>
@@ -33,24 +33,6 @@ const SelectorBox = () => {
           <header className="flex justify-between items-center px-3 py-2 border-gray-200 border-b">
             <h2 className="font-semibold text-gray-800 text-sm">Text Layer #{selectedTextLayer.id ?? selectedLayer}</h2>
             <div className="flex items-center gap-2 ml-2">
-
-              <button
-                onClick={undo}
-                disabled={!canUndo}
-                className={`px-2 py-1 border rounded text-xs transition ${canUndo ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-gray-200 text-gray-400 cursor-not-allowed"}`}
-                title="Undo (Cmd/Ctrl+Z)"
-              >
-                Undo {pastCount}/{maxHistory}
-              </button>
-              <button
-                onClick={redo}
-                disabled={!canRedo}
-                className={`px-2 py-1 border rounded text-xs transition ${canRedo ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-gray-200 text-gray-400 cursor-not-allowed"}`}
-                title="Redo (Shift+Cmd/Ctrl+Z)"
-              >
-                Redo {futureCount}/{maxHistory}
-              </button>
-
               <button
                 onClick={deleteLayer}
                 className="hover:bg-red-50 px-2 py-1 border border-red-300 rounded text-red-600 text-xs transition"

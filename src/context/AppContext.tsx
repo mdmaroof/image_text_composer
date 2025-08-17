@@ -38,6 +38,8 @@ type AppContextType = {
   pastCount: number;
   futureCount: number;
   maxHistory: number;
+  // Reset stacks and layers without adding to history
+  resetLayersAndHistory: () => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -98,20 +100,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
-  // Wrapped setter to capture history and cap at MAX_HISTORY entries
+  // Basic setter without history side-effects; history tracked in a committed-change effect
   const setTextLayers: React.Dispatch<React.SetStateAction<TextLayerType[]>> = useCallback((updater) => {
     _setTextLayers((prev) => {
       const next = typeof updater === "function" ? (updater as (p: TextLayerType[]) => TextLayerType[])(prev) : updater;
-      // If no change, skip
-      if (areArraysShallowEqual(prev, next)) return prev;
-
-      if (!isApplyingHistoryRef.current) {
-        // push prev into past
-        pastRef.current = [...pastRef.current, prev].slice(-MAX_HISTORY);
-        // clear future on new change
-        futureRef.current = [];
-      }
-      return next;
+      return areArraysShallowEqual(prev, next) ? prev : next;
     });
   }, []);
 
@@ -145,8 +138,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const pastCount = pastRef.current.length;
   const futureCount = futureRef.current.length;
 
+  // Track history on committed textLayers changes to avoid double entries under Strict Mode
+  const prevCommittedRef = useRef<TextLayerType[] | null>(null);
+  const [, forceRender] = useState(0);
+  useEffect(() => {
+    if (!hasHydratedRef.current) {
+      prevCommittedRef.current = textLayers;
+      return;
+    }
+    const prev = prevCommittedRef.current;
+    if (prev && !isApplyingHistoryRef.current && !areArraysShallowEqual(prev, textLayers)) {
+      pastRef.current = [...pastRef.current, prev].slice(-MAX_HISTORY);
+      futureRef.current = [];
+    }
+    prevCommittedRef.current = textLayers;
+    // Force a render so canUndo/canRedo and counts reflect updated refs
+    forceRender((x) => x + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textLayers]);
+
   const setSelectedLayer = useCallback<React.Dispatch<React.SetStateAction<number | null>>>((updater) => {
     _setSelectedLayer((prev) => (typeof updater === "function" ? (updater as (p: number | null) => number | null)(prev) : updater));
+  }, []);
+
+  const resetLayersAndHistory = useCallback(() => {
+    // prevent history effect from recording
+    isApplyingHistoryRef.current = true;
+    pastRef.current = [];
+    futureRef.current = [];
+    _setTextLayers([]);
+    _setSelectedLayer(null);
+    prevCommittedRef.current = [];
+    isApplyingHistoryRef.current = false;
+    // force update to refresh counts
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    forceRender((x) => x + 1);
+    try {
+      localStorage.setItem(LS_KEY_LAYERS, JSON.stringify([]));
+      localStorage.setItem(LS_KEY_SELECTED, JSON.stringify(null));
+    } catch (_) {}
   }, []);
 
   const value = useMemo<AppContextType>(() => ({
@@ -161,6 +191,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     pastCount,
     futureCount,
     maxHistory: MAX_HISTORY,
+    resetLayersAndHistory,
   }), [textLayers, selectedLayer, setTextLayers, undo, redo, canUndo, canRedo, pastCount, futureCount]);
 
   return (

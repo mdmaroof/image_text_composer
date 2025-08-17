@@ -1,6 +1,7 @@
 "use client";
 import { AppContext, TextLayerType } from "@/context/AppContext";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import Button from "@/component/common/Button";
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_OFFSET = 28;
@@ -10,8 +11,10 @@ const SNAP_THRESHOLD = 6;
 const Canvas = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const resetInProgressRef = useRef(false);
 
-  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers, undo, redo } = useContext(AppContext)!;
+  const { textLayers, selectedLayer, setSelectedLayer, setTextLayers, undo, redo, canUndo, canRedo, pastCount, futureCount, maxHistory, resetLayersAndHistory } = useContext(AppContext)!;
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -25,10 +28,10 @@ const Canvas = () => {
   };
 
   const handleFile = useCallback((file: File) => {
-    // if (file.type !== "image/png") {
-    //   alert("Please upload a PNG image.");
-    //   return;
-    // }
+    if (file.type !== "image/png") {
+      alert("Please upload a PNG image.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -39,6 +42,8 @@ const Canvas = () => {
       const image = new Image();
       image.onload = () => {
         setImg(image);
+        // allow choosing the same file again later
+        if (fileInputRef.current) fileInputRef.current.value = "";
       };
       image.src = dataUrl;
     };
@@ -56,7 +61,8 @@ const Canvas = () => {
 
     const dpr = window.devicePixelRatio || 1;
 
-    if (img) {
+    // If we're in the middle of reset, force white background once
+    if (img && !resetInProgressRef.current) {
       const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
       const targetW = Math.max(1, Math.floor(img.naturalWidth * scale));
       const targetH = Math.max(1, Math.floor(img.naturalHeight * scale));
@@ -81,6 +87,10 @@ const Canvas = () => {
       ctx.clearRect(0, 0, targetW, targetH);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, targetW, targetH);
+      // End reset mode only when there is no image in state
+      if (!img) {
+        resetInProgressRef.current = false;
+      }
     }
   }, [img]);
 
@@ -99,7 +109,6 @@ const Canvas = () => {
   useEffect(() => {
     createCanvasWithImage();
     drawText();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hitTestLayer = useCallback((
@@ -114,7 +123,7 @@ const Canvas = () => {
 
     const ctx = canvas.getContext("2d");
 
-    for (let i = textLayers.length - 1; i >= 0; i--) {
+    for (let i = textLayers?.length - 1; i >= 0; i--) {
       const layer = textLayers[i];
 
       // Determine width used for layout and compute wrapped lines/dimensions
@@ -304,7 +313,7 @@ const Canvas = () => {
       }
     }
 
-    const selectedTextLayer = textLayers.find(
+    const selectedTextLayer = textLayers?.find(
       (layer) => layer.id === selectedLayer
     );
     if (!selectedTextLayer) return;
@@ -399,6 +408,11 @@ const Canvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    // During reset or when no image, only render the white background once
+    if (resetInProgressRef.current || !img) {
+      createCanvasWithImage();
+      return;
+    }
     createCanvasWithImage();
     // draw in current array order to reflect layer move up/down
     for (const layer of textLayers) {
@@ -498,7 +512,7 @@ const Canvas = () => {
       ctx.restore();
     }
 
-    const selectedtextLayer = textLayers.find((layer) => layer.id === selectedLayer);
+    const selectedtextLayer = textLayers?.find((layer) => layer.id === selectedLayer);
 
     if (isDragging && selectedtextLayer && img) {
       // Measure selected box for guideline alignment
@@ -555,7 +569,7 @@ const Canvas = () => {
       }
       ctx.restore();
     }
-  }, [selectedLayer, textLayers, createCanvasWithImage]);
+  }, [selectedLayer, textLayers, createCanvasWithImage, img]);
 
   useEffect(() => {
     drawText();
@@ -569,16 +583,36 @@ const Canvas = () => {
     const onKeyDown = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const meta = isMac ? e.metaKey : e.ctrlKey;
-      if (!meta) return;
-      if (e.key.toLowerCase() === "z") {
+      // Undo/Redo
+      if (meta && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
+        return;
+      }
+
+      const active = document.activeElement as HTMLElement | null;
+      const isTyping = !!active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable);
+      if (isTyping) return;
+
+      if (selectedLayer != null) {
+        const step = e.shiftKey ? 10 : 1;
+        const layer = textLayers?.find((l) => l.id === selectedLayer);
+        if (!layer) return;
+        let dx = 0, dy = 0;
+        if (e.key === "ArrowLeft") dx = -step;
+        else if (e.key === "ArrowRight") dx = step;
+        else if (e.key === "ArrowUp") dy = -step;
+        else if (e.key === "ArrowDown") dy = step;
+        if (dx !== 0 || dy !== 0) {
+          e.preventDefault();
+          updateTextLayer(layer.id, { x: layer.x + dx, y: layer.y + dy });
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, selectedLayer, textLayers]);
 
   useEffect(() => {
     const handle = () => {
@@ -597,13 +631,161 @@ const Canvas = () => {
     };
   }, [createCanvasWithImage, drawText]);
 
+  // Export final image at original image dimensions
+  const exportPNG = useCallback((): string | null => {
+    if (!img || !canvasRef.current) return null;
+    const naturalW = Math.max(1, Math.floor(img.naturalWidth));
+    const naturalH = Math.max(1, Math.floor(img.naturalHeight));
+
+    const displayRect = canvasRef.current.getBoundingClientRect();
+    const scaleFactorX = naturalW / Math.max(1, displayRect.width);
+    const scaleFactorY = naturalH / Math.max(1, displayRect.height);
+    // We maintain aspect ratio, so both scale factors should be equal
+    const s = Math.min(scaleFactorX, scaleFactorY);
+
+    const off = document.createElement("canvas");
+    off.width = naturalW;
+    off.height = naturalH;
+    const octx = off.getContext("2d");
+    if (!octx) return null;
+
+    // Draw original image
+    octx.clearRect(0, 0, naturalW, naturalH);
+    octx.drawImage(img, 0, 0, naturalW, naturalH);
+
+    // Draw text layers at scaled positions
+    for (const layer of textLayers) {
+      const fontSize = layer.fontSize * s;
+      const lineHeight = fontSize * LINE_HEIGHT_FACTOR;
+      const width = layer.width ? layer.width * s : 0;
+
+      octx.save();
+      octx.globalAlpha = layer.opacity;
+      octx.textBaseline = "top";
+      octx.font = `${layer.fontWeight} ${fontSize}px "${layer.fontFamily}"`;
+      octx.fillStyle = layer.color;
+      octx.textAlign = "left";
+
+      // Build wrapped lines using scaled width
+      const lines: string[] = [];
+      const paragraphs = layer.text.split("\n");
+      for (const para of paragraphs) {
+        const words = para.split(/(\s+)/);
+        let current = "";
+        for (const w of words) {
+          const test = current + w;
+          const metrics = octx.measureText(test);
+          if (width && metrics.width > width && current.trim() !== "") {
+            lines.push(current);
+            current = w.trimStart();
+          } else {
+            current = test;
+          }
+        }
+        lines.push(current);
+      }
+
+      const textBoxWidth = width || Math.max(...lines.map((l) => octx.measureText(l).width), 0);
+
+      // Apply transform at scaled position
+      const x = layer.x * s;
+      const y = layer.y * s;
+      octx.translate(x, y);
+      octx.rotate((layer.rotation * Math.PI) / 180);
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineW = octx.measureText(line).width;
+        const boxW = width || textBoxWidth;
+        let drawX = 0;
+        if (layer.align === "center") drawX = (boxW - lineW) / 2;
+        else if (layer.align === "right") drawX = boxW - lineW;
+        const drawY = i * lineHeight;
+        octx.fillText(line, drawX, drawY, width || undefined);
+      }
+
+      octx.restore();
+    }
+
+    return off.toDataURL("image/png");
+  }, [img, textLayers]);
+
+  // Reset editor: clear storage and state
+  const resetEditor = useCallback(() => {
+    try {
+      localStorage.removeItem("itc:imageDataUrl");
+      localStorage.removeItem("itc:textLayers");
+      localStorage.removeItem("itc:selectedLayer");
+    } catch (_) {}
+    // clear file input so the same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    // mark reset in progress so next draw is forced white
+    resetInProgressRef.current = true;
+    // clear current image element to prevent any late draws
+    try {
+      if (img) img.src = "";
+    } catch (_) {}
+    setImg(null);
+    setImageDataUrl(null);
+    // Clear layers and history in context
+    resetLayersAndHistory();
+    // Immediately hard-clear canvas to avoid any flicker
+    const c = canvasRef.current;
+    const ctx = c?.getContext("2d");
+    if (c && ctx) {
+      // Reset transform and zero dimensions to force buffer clear
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      c.width = 0;
+      c.height = 0;
+      // Restore to wrapper size and repaint white
+      const wrapper = wrapperRef.current;
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = Math.max(1, Math.floor((wrapper?.clientWidth || 720)));
+      const targetH = Math.max(1, Math.floor((wrapper?.clientHeight || 480)));
+      c.width = Math.round(targetW * dpr);
+      c.height = Math.round(targetH * dpr);
+      c.style.width = `${targetW}px`;
+      c.style.height = `${targetH}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, targetW, targetH);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, targetW, targetH);
+    }
+    // Redraw blank canvas (no text) after state updates flush
+    setTimeout(() => {
+      createCanvasWithImage();
+    }, 0);
+  }, [createCanvasWithImage, resetLayersAndHistory]);
+
 
   return (
     <main
       id="canvas"
       className="relative flex flex-col flex-1 items-center gap-4 p-4 border border-gray-300 rounded-md w-full h-full min-h-0 overflow-hidden"
     >
-      <h1 className="font-bold text-xl">Canvas</h1>
+      <header className="flex justify-between items-center w-full">
+        <h1 className="font-bold text-xl">Canvas</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            label={`Undo ${pastCount}/${maxHistory}`}
+            onClick={undo}
+            disabled={!canUndo}
+            className="text-xs"
+            title="Undo (Cmd/Ctrl+Z)"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            label={`Redo ${futureCount}/${maxHistory}`}
+            onClick={redo}
+            disabled={!canRedo}
+            className="text-xs"
+            title="Redo (Shift+Cmd/Ctrl+Z)"
+          />
+        </div>
+      </header>
       <section
         className="flex flex-1 justify-center items-center min-h-0"
         ref={wrapperRef}
@@ -618,13 +800,45 @@ const Canvas = () => {
         ></canvas>
       </section>
 
-      <input
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-        }}
-        type="file"
-      />
+      <section className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+          type="file"
+          accept="image/png"
+          className="hidden"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          label="Choose PNG"
+          onClick={() => fileInputRef.current?.click()}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          label="Export PNG"
+          onClick={() => {
+            const url = exportPNG();
+            if (!url) return;
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "image-text-composer.png";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }}
+        />
+        <Button
+          variant="danger"
+          size="sm"
+          label="Reset"
+          onClick={resetEditor}
+        />
+      </section>
     </main>
   );
 };

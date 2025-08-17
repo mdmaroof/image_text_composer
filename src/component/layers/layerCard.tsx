@@ -36,9 +36,9 @@ const LayerCard = ({ label, number, selected }: LayerCardType) => {
     });
   };
 
-  const myIndex = textLayers.findIndex((l) => l.id === number);
+  const myIndex = textLayers?.findIndex((l) => l.id === number);
   const canMoveUp = myIndex > 0;
-  const canMoveDown = myIndex !== -1 && myIndex < textLayers.length - 1;
+  const canMoveDown = myIndex !== -1 && myIndex < textLayers?.length - 1;
   return (
     <div
       className={`flex flex-col justify-center ${
