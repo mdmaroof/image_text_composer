@@ -67,12 +67,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const parsedSel = savedSelRaw ? JSON.parse(savedSelRaw) : null;
       _setTextLayers(savedLayers || []);
       _setSelectedLayer(typeof parsedSel === "number" ? parsedSel : null);
-    } catch (_) {
-      // ignore corrupted storage
+    } catch (e) {
+      console.error("Failed to load layers from localStorage:", e);
     } finally {
       hasHydratedRef.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist changes
@@ -80,14 +79,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!hasHydratedRef.current) return;
     try {
       localStorage.setItem(LS_KEY_LAYERS, JSON.stringify(textLayers));
-    } catch (_) {}
+    } catch (e) {
+      console.error("Failed to save layers to localStorage:", e);
+    }
   }, [textLayers]);
 
   useEffect(() => {
     if (!hasHydratedRef.current) return;
     try {
       localStorage.setItem(LS_KEY_SELECTED, JSON.stringify(selectedLayer));
-    } catch (_) {}
+    } catch (e) {
+      console.error("Failed to save selected layer to localStorage:", e);
+    }
   }, [selectedLayer]);
 
   // Helper to compare arrays shallowly by reference equality at element level
@@ -152,9 +155,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       futureRef.current = [];
     }
     prevCommittedRef.current = textLayers;
-    // Force a render so canUndo/canRedo and counts reflect updated refs
     forceRender((x) => x + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textLayers]);
 
   const setSelectedLayer = useCallback<React.Dispatch<React.SetStateAction<number | null>>>((updater) => {
@@ -170,13 +171,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     _setSelectedLayer(null);
     prevCommittedRef.current = [];
     isApplyingHistoryRef.current = false;
-    // force update to refresh counts
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     forceRender((x) => x + 1);
     try {
       localStorage.setItem(LS_KEY_LAYERS, JSON.stringify([]));
       localStorage.setItem(LS_KEY_SELECTED, JSON.stringify(null));
-    } catch (_) {}
+    } catch (e) {
+      console.error("Failed to clear localStorage:", e);
+    }
   }, []);
 
   const value = useMemo<AppContextType>(() => ({

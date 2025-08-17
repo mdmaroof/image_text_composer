@@ -9,13 +9,7 @@ type LayerCardType = {
 
 const LayerCard = ({ label, number, selected }: LayerCardType) => {
   const { setTextLayers, setSelectedLayer, textLayers } = useContext(AppContext)!;
-
-  const deleteLayer = () => {
-    setTextLayers((prev) => {
-      return prev.filter((z) => z.id !== number);
-    });
-  };
-
+  
   const moveUp = () => {
     setTextLayers((prev) => {
       const idx = prev.findIndex((l) => l.id === number);
